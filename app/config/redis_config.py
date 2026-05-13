@@ -1,28 +1,25 @@
 from typing import Optional
-
+from app.config.Global_config import *
 import redis.asyncio as aioredis
 from redis.asyncio import Redis
 
 
-# Global Redis client (initialized at startup)
-redis_client: Optional[Redis] = None
 
+redis_client: Optional[Redis] = None
 
 def get_redis_client() -> Redis:
     if redis_client is None:
-        raise RuntimeError("Redis client has not been initialized. Call init_redis() first.")
+        init_redis()
     return redis_client
 
 
 async def init_redis():
-    """Create async Redis connection and verify connectivity."""
     global redis_client
     redis_client = aioredis.from_url(
-        settings.REDIS_URL,
-        max_connections=settings.REDIS_POOL_SIZE,
+        REDIS_URL,
+        max_connections=REDIS_POOL_SIZE,
         decode_responses=True,
     )
-    # Ping test
     await redis_client.ping()
 
 
@@ -62,33 +59,4 @@ async def cache_delete_pattern(pattern: str):
         await client.delete(*keys)
 
 
-# ---------------------------------------------------------------------------
-# Helper: enterprise key name builders
-# ---------------------------------------------------------------------------
 
-def build_session_key(token: str) -> str:
-    return f"rag:session:{token}"
-
-
-def build_user_search_key(user_id: int, query_md5: str) -> str:
-    return f"rag:user:{user_id}:search:{query_md5}"
-
-
-def build_user_rerank_key(user_id: int, query_md5: str, doc_ids_md5: str) -> str:
-    return f"rag:user:{user_id}:rerank:{query_md5}:{doc_ids_md5}"
-
-
-def build_chat_history_key(conversation_id: str) -> str:
-    return f"rag:chat:history:{conversation_id}"
-
-
-def build_doc_chunks_key(doc_id: str) -> str:
-    return f"rag:doc:chunks:{doc_id}"
-
-
-def build_user_conversations_key(user_id: int) -> str:
-    return f"rag:user:{user_id}:conversations"
-
-
-def build_upload_progress_key(task_id: str) -> str:
-    return f"rag:upload:progress:{task_id}"

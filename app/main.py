@@ -1,46 +1,59 @@
 from contextlib import asynccontextmanager
 
-from app.config.mysql_config import init_db
-from config.logger_config import logger
+from starlette.middleware.cors import CORSMiddleware
+from app.models import user, conversation, document
+from app.config.Global_config import APP_NAME, APP_VERSION
+from app.config.mysql_config import init_db, async_engine
+from app.config.logger_config import logger
 from fastapi import FastAPI
 
 from app.config.redis_config import init_redis, close_redis
 
-
-def create_app() -> FastAPI:
-    """Create and configure the FastAPI application."""
-    app = FastAPI(
-        title="RAG 智能对话系统",
-        lifespan=lifespan,
-    )
-
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan: startup and shutdown events."""
+async def lifespan(fastapi: FastAPI):
     # Startup
     await init_redis()
     await init_db()
     yield
     # Shutdown
     await close_redis()
-    await engine.dispose()
+    await async_engine.dispose()
 
 
+def create_app() -> FastAPI:
+    fastapi = FastAPI(
+        title="RAG 智能对话系统",
+        lifespan=lifespan,
+    )
 
-
-
-
+    # CORS middleware
+    fastapi.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:4173",
+            "http://127.0.0.1:4173",
+            "http://localhost:8000",
+            "http://127.0.0.1:8000",
+        ],  # 允许访问的源
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    return fastapi
 
 app = create_app()
 
 logger.info("🚀 FastAPI 服务启动成功！")
 
-
 @app.get("/")
-async def root():
-    return {"message": "Hello World"}
-
-
-@app.get("/hello/{name}")
-async def say_hello(name: str):
-    return {"message": f"Hello {name}"}
+async def health_check():
+    return {
+        "code": 0,
+        "message": "RAG 智能对话系统运行正常",
+        "data": {
+            "app_name": APP_NAME,
+            "version": APP_VERSION,
+        },
+    }

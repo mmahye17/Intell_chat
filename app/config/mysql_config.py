@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from Global_config import *
+from app.config.Global_config import  DATABASE_URL,MYSQL_ECHO,MYSQL_POOL_SIZE,MYSQL_MAX_OVERFLOW
 from sqlalchemy.orm import declarative_base
+from typing import AsyncGenerator
 
 # 创建异步引擎
 async_engine = create_async_engine(
@@ -24,3 +25,9 @@ async def init_db():
     """Create all tables in the database."""
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+
+# 获得异步会话
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    async with AsyncSessionLocal() as session:
+        yield session
