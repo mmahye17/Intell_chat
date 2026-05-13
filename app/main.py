@@ -9,6 +9,8 @@ from fastapi import FastAPI
 
 from app.config.redis_config import init_redis, close_redis
 
+from app.routers.users import  users_router
+
 @asynccontextmanager
 async def lifespan(fastapi: FastAPI):
     # Startup
@@ -41,6 +43,9 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    fastapi.include_router(users_router)
+
     return fastapi
 
 app = create_app()

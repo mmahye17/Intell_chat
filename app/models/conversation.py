@@ -30,4 +30,3 @@ class Message(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
-    conversation = relationship("Conversation", back_populates="messages")
