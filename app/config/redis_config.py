@@ -1,4 +1,7 @@
-from typing import Optional
+from typing import Optional, Any, Coroutine
+
+from pyasn1.compat import integer
+
 from app.config.Global_config import *
 import redis.asyncio as aioredis
 from redis.asyncio import Redis
@@ -57,6 +60,31 @@ async def cache_delete_pattern(pattern: str):
         keys.append(key)
     if keys:
         await client.delete(*keys)
+
+
+async def cache_hset(key: str, mapping: dict, ttl: int = 600):
+    """Hash: set multiple fields, then set TTL."""
+    client = get_redis_client()
+    await client.hset(key, mapping=mapping)
+    await client.expire(key, ttl)
+
+
+async def cache_hgetall(key: str) -> dict:
+    """Hash: get all fields and values."""
+    client = get_redis_client()
+    return await client.hgetall(key)
+
+
+async def cache_exists(key: str) -> bool:
+    """Check if a key exists."""
+    client = get_redis_client()
+    return await client.exists(key) > 0
+
+
+async def cache_expire(key: str, ttl: int):
+    """Refresh TTL on an existing key."""
+    client = get_redis_client()
+    await client.expire(key, ttl)
 
 
 
