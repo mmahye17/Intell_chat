@@ -15,8 +15,6 @@ class Conversation(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
-    user = relationship("User", back_populates="conversations")
-    messages = relationship("Message", back_populates="conversation", lazy="selectin", cascade="all, delete-orphan")
 
 
 class Message(Base):

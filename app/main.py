@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 
+from fastapi.security import HTTPBearer
 from starlette.middleware.cors import CORSMiddleware
 from app.models import user, conversation, document
 from app.config.Global_config import APP_NAME, APP_VERSION
@@ -9,7 +10,11 @@ from fastapi import FastAPI
 
 from app.config.redis_config import init_redis, close_redis
 
-from app.routers.users import  users_router
+from app.routers.users import users_router
+
+from app.middleware.auth_middleware import AuthMiddleware
+
+security = HTTPBearer(auto_error=False)
 
 @asynccontextmanager
 async def lifespan(fastapi: FastAPI):
@@ -28,7 +33,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS middleware
+    # CORS middleware (先加，后执行)
     fastapi.add_middleware(
         CORSMiddleware,
         allow_origins=[
@@ -38,11 +43,14 @@ def create_app() -> FastAPI:
             "http://127.0.0.1:4173",
             "http://localhost:8000",
             "http://127.0.0.1:8000",
-        ],  # 允许访问的源
+        ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Auth middleware (后加，先执行 → 请求先过鉴权再进 CORS)
+    fastapi.add_middleware(AuthMiddleware)
 
     fastapi.include_router(users_router)
 
