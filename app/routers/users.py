@@ -9,7 +9,7 @@ from app.schemas.users import UserResquest, LoginRequest
 from app.service.users import registers, login, logout
 
 users_router = APIRouter(prefix="/api/users", tags=["用户"])
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 @users_router.post("/register")
 async def register_route(user_data: UserResquest, db: AsyncSession = Depends(get_session)):
