@@ -17,3 +17,21 @@ async def create_user(db: AsyncSession, user_data: UserInfo):
     await db.commit()
     await db.refresh(user)
     return user
+
+
+async def get_user_by_id(db: AsyncSession, user_id: int):
+    query = select(User).where(User.id == user_id)
+    result = await db.execute(query)
+    return result.scalar_one_or_none()
+
+
+async def update_user(db: AsyncSession, user_id: int, update_data: dict):
+    user = await get_user_by_id(db, user_id)
+    if not user:
+        return None
+    for key, value in update_data.items():
+        if hasattr(user, key):
+            setattr(user, key, value)
+    await db.commit()
+    await db.refresh(user)
+    return user

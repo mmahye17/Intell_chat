@@ -11,6 +11,7 @@ WHITELIST = {
     "/api/users/login",
     "/api/users/register",
     "/api/users/logout",
+    #调试文档的path：
     "/docs",
     "/docs/oauth2-redirect",
     "/redoc",

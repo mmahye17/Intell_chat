@@ -3,12 +3,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 from jose import JWTError
 
-from app.crud.users import get_user_by_username, create_user
+from app.crud.users import get_user_by_username, create_user, get_user_by_id, update_user
 from app.schemas.common import success_response
 from app.schemas.users import UserResquest, UserInfo, UserAuthResponse, LoginRequest
 from app.utils.password_hash_util import Hash
 from app.utils.jwt_util import create_access_token, decode_token
-from app.utils.session_cache import create_session, delete_session, validate_token
+from app.utils.session_cache import create_session, delete_session, get_session, validate_token
 from app.utils.random_nickname_util import get_random_nickname
 
 
@@ -62,6 +62,35 @@ async def login(db: AsyncSession, username: str, password: str, token: str | Non
     await create_session(user.id, new_token, UserInfo.model_validate(user).model_dump(mode='json'))
 
     return success_response("账号密码登录成功", new_token)
+
+# 获取用户信息
+async def get_user_info(db: AsyncSession, user_id: int):
+    user = await get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在",
+        )
+    return success_response("获取成功", UserInfo.model_validate(user))
+
+
+# 更新用户信息
+async def update_user_info(db: AsyncSession, user_id: int, update_data: UserInfo):
+    allowed = {"nickname", "gender", "avatar", "email"}
+    filtered = {k: v for k, v in update_data.model_dump().items() if k in allowed}
+
+    updated = await update_user(db, user_id, filtered)
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在",
+        )
+    session = await get_session(user_id)
+    token = session.get("token") if session else ""
+    await create_session(user_id, token, UserInfo.model_validate(updated).model_dump(mode='json'))
+
+    return success_response("更新成功", UserInfo.model_validate(updated))
+
 
 # 用户登出
 async def logout(db: AsyncSession, req: LoginRequest, token: str | None = None):
