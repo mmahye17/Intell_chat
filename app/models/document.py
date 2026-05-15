@@ -10,7 +10,7 @@ class Document(Base):
     __tablename__ = "documents"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     filename: Mapped[str] = mapped_column(String(256), nullable=False)
     file_size: Mapped[int] = mapped_column(Integer, nullable=True)
     file_path: Mapped[str] = mapped_column(String(512), nullable=True)
