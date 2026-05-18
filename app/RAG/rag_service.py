@@ -17,6 +17,8 @@ from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_classic.retrievers import ContextualCompressionRetriever
 from openai import OpenAI
+from rank_bm25 import BM25Okapi
+import jieba
 
 from app.config.Global_config import (
     CHROMA_DB_DIR,EMBEDDING_MODEL, EMBEDDING_BATCH_SIZE, EMBEDDING_KEY, EMBEDDING_URL,
@@ -161,15 +163,63 @@ def retrieve_with_rerank(conv_id: int, query: str, top_k: int = 5, top_n: int = 
         logger.warning(f"Rerank 失败，退回向量检索: {e}")
         compressed = retriever.invoke(query)
 
-    #调试
-    logger.info(compressed)
-    print("==========================================")
-    print(doc for doc in compressed)
-
     return [
         {"content": doc.page_content, "score": doc.metadata.get("relevance_score", 0)}
         for doc in compressed
     ]
+
+
+# ===== BM25 关键词检索 =====
+
+def bm25_search(conv_id: int, query: str, top_k: int = 5) -> list[dict]:
+    vs = _get_vectorstore(conv_id)
+    if vs is None:
+        return []
+    all_docs = vs.get()["documents"]
+    if not all_docs:
+        return []
+    tokenized_docs = [list(jieba.cut(d)) for d in all_docs]
+    tokenized_query = list(jieba.cut(query))
+    bm25 = BM25Okapi(tokenized_docs)
+    scores = bm25.get_scores(tokenized_query)
+    indexed = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)[:top_k]
+    return [{"content": all_docs[i], "score": round(s, 4)} for i, s in indexed if s > 0]
+
+
+# ===== 混合检索：向量 + BM25 =====
+
+def hybrid_search(conv_id: int, query: str, top_k: int = 5, top_n: int = 3) -> list[dict]:
+    # 向量检索
+    vector_results = []
+    retriever = get_retriever(conv_id, top_k)
+    if retriever:
+        try:
+            docs = retriever.invoke(query)
+            vector_results = [{"content": d.page_content, "score": d.metadata.get("relevance_score", 0)} for d in docs]
+        except Exception:
+            pass
+
+    # BM25 检索
+    bm25_results = bm25_search(conv_id, query, top_k)
+
+    # 合并去重
+    seen = {r["content"] for r in vector_results}
+    for r in bm25_results:
+        if r["content"] not in seen:
+            vector_results.append(r)
+
+    if len(vector_results) <= top_n:
+        return vector_results
+
+    from app.RAG.reranker import DashScopeReranker as _R
+    reranker = _R(top_n=top_n)
+    try:
+        from langchain_core.documents import Document as _Doc
+        docs = [_Doc(page_content=r["content"]) for r in vector_results]
+        reranked = reranker.compress_documents(docs, query)
+        return [{"content": d.page_content, "score": d.metadata.get("relevance_score", 0)} for d in reranked]
+    except Exception:
+        return vector_results[:top_n]
 
 
 def delete_collection(conv_id: int):

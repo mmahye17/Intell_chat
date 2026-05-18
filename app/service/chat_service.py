@@ -4,13 +4,14 @@ from starlette import status
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from app.utils.conversation_cache import get_recent_conversations_from_cache
+from app.models.conversation import Conversation
 
 from app.config.Global_config import LLM_MODEL, LLM_API_KEY, LLM_BASE_URL, CONVERSION_ROUNDS_SIZE, RETRIEVER_TOP_K, \
     RERANK_TOP_N
 from app.crud import conversation as conv_crud
 from app.crud.message import create_message, get_messages_by_conv, get_messages_before
 from app.crud.document import create_document, update_document_status
-from app.RAG.rag_service import load_documents, split_documents, store_documents, retrieve_with_rerank
+from app.RAG.rag_service import load_documents, split_documents, store_documents, retrieve_with_rerank, hybrid_search
 from app.schemas.common import success_response
 from app.schemas.message import MessageItem, SourceItem
 from app.utils.conversation_cache import set_recent_conversations_cache
@@ -58,12 +59,19 @@ def _generate_title(query: str, ai_reply: str) -> str:
         return "新对话"
 
 
+def _do_search(conv_id: int, query: str, mode: str):
+    if mode == "hybrid":
+        return hybrid_search(conv_id, query, RETRIEVER_TOP_K, RERANK_TOP_N)
+    return retrieve_with_rerank(conv_id, query, RETRIEVER_TOP_K, RERANK_TOP_N)
+
+
 async def send_message(
     db: AsyncSession,
     user_id: int,
     conv_id: int | None,
     query: str,
     file: UploadFile | None = None,
+    retrieval_mode: str = "vector",
 ):
     is_new_conversion = 0
     # 1. 新建会话
@@ -83,7 +91,8 @@ async def send_message(
             store_documents(conv_id, chunks)
             doc = await create_document(db, conv_id, user_id, file.filename or "", len(file_bytes), len(chunks))
             doc_id = doc.id
-            sources = retrieve_with_rerank(conv_id, query, RETRIEVER_TOP_K, RERANK_TOP_N)
+            # 根据前端传来的检索策略进行检索
+            sources = _do_search(conv_id, query, retrieval_mode)
         except Exception as e:
             logger.error(f"文件处理失败: {e}")
             if doc_id:
@@ -110,7 +119,6 @@ async def send_message(
                     break
         # Redis 没找到 → 查数据库
         if not summary:
-            from app.models.conversation import Conversation
             _conv = await db.get(Conversation, conv_id)
             if _conv:
                 summary = _conv.summary
@@ -122,7 +130,7 @@ async def send_message(
     # 没有文件时也尝试检索 RAG（如果该会话有历史文档）
     if not is_new_conversion:   # 旧对话才进入
         if not sources:
-            sources = retrieve_with_rerank(conv_id, query, RETRIEVER_TOP_K, RERANK_TOP_N)
+            sources = _do_search(conv_id, query, retrieval_mode)
 
     # 4. 调 LLM
     messages = _build_messages(history, query, sources, summary)

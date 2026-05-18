@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, UploadFile, File, Form
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,8 +17,9 @@ async def send_message_route(
     query: str = Form(...),
     conv_id: int = Form(default=None),
     file: UploadFile = File(default=None),
+    retrieval_mode: Literal["vector", "hybrid"] = Form(default="vector"),
     request: Request = None,
     db: AsyncSession = Depends(get_session),
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
-    return await send_message(db, request.state.user_id, conv_id or None, query, file)
+    return await send_message(db, request.state.user_id, conv_id or None, query, file, retrieval_mode)

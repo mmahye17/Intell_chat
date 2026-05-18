@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, Query
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +14,7 @@ security = HTTPBearer(auto_error=False)
 
 
 @conv_router.get("/list")
-async def list_conversations(mode: str = Query(default="recent"), request: Request = None,
+async def list_conversations(mode: Literal["recent", "all"] = Query(default="recent"), request: Request = None,
                              db: AsyncSession = Depends(get_session),
                              credentials: HTTPAuthorizationCredentials = Depends(security)):
     return await get_conversation_list(db, request.state.user_id, mode)
