@@ -30,9 +30,19 @@ REDIS_RERANK_TTL_SECONDS=int(os.getenv("REDIS_RERANK_TTL_SECONDS"))
 
 # rag配置读取
 CHROMA_DB_DIR= Path(__file__).resolve().parent.parent / f'{os.getenv("CHROMA_DB_DIR")}' #./app/chroma_db
+CONVERSION_ROUNDS_SIZE=int(os.getenv("CONVERSION_ROUNDS_SIZE")) # 放入提示词的最近对话轮数
+RETRIEVER_TOP_K=int(os.getenv("RETRIEVER_TOP_K"))
+
+#嵌入模型读取
 EMBEDDING_MODEL=os.getenv("EMBEDDING_MODEL")           #嵌入模型
-RERANK_MODEL=os.getenv("RERANK_MODEL")                 #重排序模型
+EMBEDDING_URL=os.getenv("EMBEDDING_URL")
+EMBEDDING_KEY=os.getenv("EMBEDDING_KEY")
 EMBEDDING_BATCH_SIZE=int(os.getenv("EMBEDDING_BATCH_SIZE")) #嵌入批大小
+
+#rerank模型读取
+RERANK_MODEL=os.getenv("RERANK_MODEL")                 #重排序模型
+RERANK_TOP_N=int(os.getenv("RERANK_TOP_N"))
+
 
 # llm配置读取
 LLM_PROVIDER=os.getenv("LLM_PROVIDER")

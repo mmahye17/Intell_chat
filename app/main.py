@@ -11,6 +11,9 @@ from fastapi import FastAPI
 from app.config.redis_config import init_redis, close_redis
 
 from app.routers.users import users_router
+from app.routers.conversation import conv_router
+from app.routers.chat import chat_router
+from app.routers.documents import doc_router
 
 from app.middleware.auth_middleware import AuthMiddleware
 
@@ -53,6 +56,9 @@ def create_app() -> FastAPI:
     fastapi.add_middleware(AuthMiddleware)
 
     fastapi.include_router(users_router)
+    fastapi.include_router(conv_router)
+    fastapi.include_router(chat_router)
+    fastapi.include_router(doc_router)
 
     return fastapi
 

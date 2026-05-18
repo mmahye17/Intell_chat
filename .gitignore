@@ -221,3 +221,4 @@ __pycache__/
 .idea/
 
 logs/*
+chroma_db/*

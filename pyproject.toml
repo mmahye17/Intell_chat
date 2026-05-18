@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.13"
 dependencies = [
+    "chromadb",
     "fastapi>=0.136.1",
     "python-jose[cryptography]>=3.5.0",
     "uvicorn>=0.46.0",
