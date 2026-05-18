@@ -49,6 +49,21 @@ async def get_conversation_detail(db: AsyncSession, conv_id: int):
     })
 
 
+# 重命名会话
+async def rename_conv(db: AsyncSession, conv_id: int, user_id: int, new_title: str):
+    conv = await db.get(Conversation, conv_id)
+    if not conv:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="会话不存在")
+    conv.title = new_title
+    await db.commit()
+
+    convs = await get_conversations_by_user(db, user_id, days=7)
+    items = [ConversationItem.model_validate(c).model_dump(mode='json') for c in convs]
+    await set_recent_conversations_cache(user_id, items)
+
+    return success_response("success")
+
+
 # 删除会话
 async def delete_conv(db: AsyncSession, conv_id: int, user_id: int):
     conv = await db.get(Conversation, conv_id)

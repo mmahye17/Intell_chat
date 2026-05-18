@@ -8,6 +8,10 @@ class ConversationCreate(BaseModel):
     title: Optional[str] = "新对话"
 
 
+class ConversationRename(BaseModel):
+    title: str
+
+
 from app.schemas.message import MessageItem
 from app.schemas.document import DocumentItem
 
