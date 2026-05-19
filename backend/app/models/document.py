@@ -14,6 +14,7 @@ class Document(Base):
     message_id: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     filename: Mapped[str] = mapped_column(String(256), nullable=False)
+    file_path: Mapped[str] = mapped_column(String(512), nullable=True, default="")
     file_size: Mapped[int] = mapped_column(Integer, nullable=True, default=0)
     chunk_count: Mapped[int] = mapped_column(Integer, default=0)
     status: Mapped[str] = mapped_column(String(20), default="completed")

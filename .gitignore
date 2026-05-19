@@ -220,5 +220,5 @@ __pycache__/
 *.pyc
 .idea/
 
-logs/*
-chroma_db/*
+backend.app.logs/*
+backend.app.chroma_db/*

@@ -1,3 +1,6 @@
+import os
+import uuid
+from pathlib import Path
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
@@ -17,6 +20,8 @@ from backend.app.schemas.message import MessageItem, SourceItem
 from backend.app.utils.conversation_cache import set_recent_conversations_cache
 from backend.app.config.logger_config import logger
 
+FILE_DATA_DIR = Path(__file__).resolve().parent.parent / "file_data"
+
 _llm = ChatOpenAI(
     api_key=LLM_API_KEY,
     base_url=LLM_BASE_URL,
@@ -24,19 +29,20 @@ _llm = ChatOpenAI(
 )
 
 
-def _build_messages(history: list, question: str, sources: list[dict], summary: str | None = None) -> list:
+def _build_messages(history: list, question: str, sources: list[dict], summary: str | None = None, full_text: str | None = None) -> list:
     msgs = []
 
-    # System prompt
-    system_parts = ["你是一个智能助手，请根据以下信息作为参考回答用户的问题。"]
+    system_parts = ["你是一个智能助手，请根据以下信息作为参考回答用户的问题。"
+                    "只需要回答就行了，不需要带标题第几个文档"]
     if summary:
         system_parts.append(f"\n【历史对话摘要】\n{summary}")
+    if full_text:
+        system_parts.append(f"\n【上传文件完整内容】\n{full_text}")
     if sources:
-        docs_text = "\n".join(f"【文档{i+1}】{s['content']}" for i, s in enumerate(sources))
-        system_parts.append(f"\n【参考文档】\n{docs_text}")
+        docs_text = "\n".join(f"【文档片段{i+1}】{s['content']}" for i, s in enumerate(sources))
+        system_parts.append(f"\n【文档相关片段】\n{docs_text}")
     msgs.append(SystemMessage(content="\n".join(system_parts)))
 
-    # 历史对话（正确的角色划分）
     if history:
         for m in history:
             if m.role == "user":
@@ -44,7 +50,6 @@ def _build_messages(history: list, question: str, sources: list[dict], summary: 
             elif m.role == "assistant":
                 msgs.append(AIMessage(content=m.content))
 
-    # 当前问题
     msgs.append(HumanMessage(content=question))
     return msgs
 
@@ -83,20 +88,37 @@ async def send_message(
     # 2. 处理文件
     sources = []
     doc_id = 0
+    chunk_count = 0
+    full_text = None
     if file:
         file_bytes = await file.read()
         try:
+            # 保存到磁盘
+            os.makedirs(FILE_DATA_DIR, exist_ok=True)
+            safe_name = f"{user_id}_{uuid.uuid4().hex[:8]}_{file.filename}"
+            file_path = FILE_DATA_DIR / safe_name
+            with open(file_path, "wb") as f:
+                f.write(file_bytes)
+
+            # 解析全文内容
             docs = load_documents(file.filename or "file", file_bytes)
+            full_text = "\n".join(d.page_content for d in docs)
+
+            # 切片 → 向量化 → ChromaDB
             chunks = split_documents(docs)
+            chunk_count = len(chunks)
             store_documents(conv_id, chunks)
-            doc = await create_document(db, conv_id, user_id, file.filename or "", len(file_bytes), len(chunks))
+
+            # 存数据库
+            doc = await create_document(db, conv_id, user_id, file.filename or "", str(file_path), len(file_bytes), chunk_count)
             doc_id = doc.id
-            # 根据前端传来的检索策略进行检索
+
+            # RAG 检索
             sources = _do_search(conv_id, query, retrieval_mode)
         except Exception as e:
             logger.error(f"文件处理失败: {e}")
             if doc_id:
-                await update_document_status(db, doc_id, "failed")
+                await update_document_status(db, doc_id, "failed", chunk_count=chunk_count)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"文件处理失败: {str(e)}",
@@ -133,7 +155,7 @@ async def send_message(
             sources = _do_search(conv_id, query, retrieval_mode)
 
     # 4. 调 LLM
-    messages = _build_messages(history, query, sources, summary)
+    messages = _build_messages(history, query, sources, summary, full_text)
     try:
         resp = _llm.invoke(messages)
         ai_reply = resp.content or ""
@@ -150,7 +172,7 @@ async def send_message(
 
     # 更新文档关联
     if doc_id:
-        await update_document_status(db, doc_id, "completed", message_id=user_msg.id)
+        await update_document_status(db, doc_id, "completed", chunk_count=chunk_count, message_id=user_msg.id)
 
     # 6. 更新会话
     window_size = CONVERSION_ROUNDS_SIZE * 2

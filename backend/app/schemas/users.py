@@ -8,7 +8,7 @@ from sqlalchemy import false
 class LoginRequest(BaseModel):
     username: str
     password: str
-    token: str
+    token: Optional[str] = None
 
 class UserResquest(BaseModel):
     username: str

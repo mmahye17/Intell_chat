@@ -9,7 +9,8 @@ async def create_document(
     conversation_id: int,
     user_id: int,
     filename: str,
-    file_size: int,
+    file_path: str = "",
+    file_size: int = 0,
     chunk_count: int = 0,
 ) -> Document:
     doc = Document(
@@ -17,6 +18,7 @@ async def create_document(
         message_id=0,
         user_id=user_id,
         filename=filename,
+        file_path=file_path,
         file_size=file_size,
         chunk_count=chunk_count,
         status="processing",
