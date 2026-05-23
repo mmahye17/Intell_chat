@@ -28,6 +28,56 @@
 - **对话记忆**：滑动窗口 + 摘要压缩，长对话不爆 token
 - **中间件鉴权**：全局拦截，白名单放行，JWT + Redis 双层校验
 
+## 系统数据流
+
+```mermaid
+flowchart LR
+    A[浏览器 Vue3] -->|HTTP 请求| B[Auth 中间件]
+    B -->|白名单放行| C[FastAPI 路由]
+    B -->|JWT 校验| C
+    C --> D[Service 业务层]
+    D --> E[(MySQL)]
+    D --> F[(Redis)]
+    D --> G[ChromaDB]
+    D --> H[OpenAI SDK]
+    H --> I[DashScope LLM / Embedding / Rerank]
+    F -->|会话缓存| C
+    G -->|向量检索| D
+    E -->|持久化| D
+```
+
+## RAG 检索流程
+
+```mermaid
+flowchart TD
+    A[用户上传文件] --> B[文档解析<br/>PDF/TXT/CSV/JSON/HTML/MD]
+    B --> C[RecursiveCharacterTextSplitter<br/>500字/块 + 50重叠]
+    C --> D[text-embedding-3-large<br/>文本 → 向量]
+    D --> E[(ChromaDB<br/>向量存储)]
+    
+    F[用户提问] --> G{检索模式}
+    G -->|vector| H[向量相似度检索 top-5]
+    G -->|hybrid| I[向量检索 top-5]
+    I --> J[BM25 关键词检索 top-5]
+    J --> K[合并去重]
+    H --> L[Qwen3-Rerank 重排序]
+    K --> L
+    L --> M[取 top-3 片段]
+    
+    F --> N[取最近对话历史]
+    N --> O{超 10 轮?}
+    O -->|是| P[生成历史摘要]
+    O -->|否| Q[全部消息放入上下文]
+    P --> Q
+    
+    M --> R[拼接 Prompt]
+    Q --> R
+    A -->|有文件| S[解析全文]
+    S --> R
+    R --> T[Qwen-plus LLM]
+    T --> U[AI 回复]
+```
+
 ## 核心架构分层
 
 ```
@@ -57,7 +107,7 @@ frontend/
 └── package.json          ← 依赖管理
 ```
 
-## 关键文件职责
+## 关键接口
 
 | 文件 | 职责 |
 |------|------|
