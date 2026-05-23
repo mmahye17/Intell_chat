@@ -38,7 +38,10 @@ const loading = ref(false)
 onMounted(() => { authStore.clearAuth() })
 
 async function handleLogin() {
-  if (!username.value || !password.value) { ElMessage.warning('请输入用户名和密码'); return }
+  if (!username.value || !password.value) {
+    ElMessage.warning('请输入用户名和密码');
+    return
+  }
   loading.value = true
   try {
     const res = await login(username.value, password.value)

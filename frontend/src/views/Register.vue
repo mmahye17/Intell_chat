@@ -38,7 +38,10 @@ const loading = ref(false)
 onMounted(() => { authStore.clearAuth() })
 
 async function handleRegister() {
-  if (!username.value || !password.value) { ElMessage.warning('请输入用户名和密码'); return }
+  if (!username.value || !password.value) {
+    ElMessage.warning('请输入用户名和密码');
+    return
+  }
   loading.value = true
   try {
     const res = await register(username.value, password.value)
@@ -47,13 +50,22 @@ async function handleRegister() {
     if (token) {
       authStore.setAuth({ username: d.userInfo?.username || username.value }, token)
       router.push('/chat')
-    } else { ElMessage.error('注册失败：' + (d.message || JSON.stringify(d))) }
-  } catch (e) { if (!e.response) ElMessage.error('无法连接服务器，请确认后端已启动') }
-  finally { loading.value = false }
+    } else {
+      ElMessage.error('注册失败：' + (d.message || JSON.stringify(d)))
+    }
+  } catch (e) {
+    if (!e.response) ElMessage.error('无法连接服务器，请确认后端已启动')
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
 <style scoped>
-.auth-page { display: flex; justify-content: center; align-items: center; height: 100vh; background: #eef0f4; }
-.auth-card { width: 400px; }
+.auth-page {
+  display: flex; justify-content: center; align-items: center; height: 100vh; background: #eef0f4;
+}
+.auth-card {
+  width: 400px;
+}
 </style>

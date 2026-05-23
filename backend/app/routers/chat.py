@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, UploadFile, File, Form
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -16,8 +16,8 @@ security = HTTPBearer(auto_error=False)
 async def send_message_route(
     query: str = Form(...),
     conv_id: int = Form(default=None),
-    file: UploadFile = File(default=None),
     retrieval_mode: Literal["vector", "hybrid"] = Form(default="vector"),
+    file: Optional[UploadFile] = File(default=None),
     request: Request = None,
     db: AsyncSession = Depends(get_session),
     credentials: HTTPAuthorizationCredentials = Depends(security),
