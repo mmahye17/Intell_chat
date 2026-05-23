@@ -4,7 +4,7 @@
 
 ## 效果展示
 
-![示例](.\assets\Effect_display.png)
+![示例](./assets/Effect_display.png)
 
 ## 技术架构
 
