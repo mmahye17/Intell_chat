@@ -130,8 +130,8 @@ async def send_message(
     message_count = 0
     final_title = ""
     if not is_new_conversion:
-        # 先从 Redis 7天会话缓存里找
-        recent = await get_recent_conversations_from_cache(user_id)
+        # 先从 Redis 7天会话缓存里找summary
+        recent = await get_recent_conversations_from_cache(user_id)   #得到的是一个列表，里面有许多字典，每个字典是一次会话conversion
         if recent:
             for item in recent:
                 if item.get("id") == conv_id:
@@ -205,6 +205,7 @@ async def send_message(
         await conv_crud.update_conversation(db, conv_id, summary=new_summary, message_count=0)
 
     # 8. 更新 Redis 缓存
+
     convs = await conv_crud.get_conversations_by_user(db, user_id, days=7)
     from backend.app.schemas.conversation import ConversationItem
     items = [ConversationItem.model_validate(c).model_dump(mode='json') for c in convs]
